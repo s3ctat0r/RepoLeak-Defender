@@ -480,10 +480,101 @@ for user in users_list:
                     count = 0
                 print('')
 
-
-
-
-
-
-
 # Part-4 author@Srujukt
+# RESULTS LOGIC FOR ORGANIZATIONS
+for organization in organizations_list:
+    print("ORGANIZATION PROVIDED: " + '%s' % organization)
+    print("")
+    for url in results_dict[organization]:
+
+        if url in url_results_dict:
+            if args.recentlyindexed:
+                new_url = url.replace('https://api.github.com/search/code',
+                                      'https://github.com/search') + '&s=indexed&type=Code&o=desc'
+            elif not args.recentlyindexed:
+                new_url = url.replace('https://api.github.com/search/code',
+                                      'https://github.com/search') + '&type=Code'
+            dork_name = dorks_list[count]
+            dork_info = ' DORK = ' + dork_name + ' | '
+            result_info = dork_info + new_url
+            count = count + 1
+
+            if url_results_dict[url] == 0:
+                if args.positiveresults == False:
+                    result_number = url_results_dict[url]
+                    normal = sys.stdout.write(colored('[#] ', 'yellow'))
+                    sys.stdout.write(colored('(%d) ' % (result_number), 'cyan'))
+                    sys.stdout.write(colored('%s' % (result_info), 'white'))
+                    new_url_list.append(new_url)
+                    result_number_list.append(result_number)
+                    dork_name_list.append(dork_name)
+                    print('')
+
+            else:
+                result_number = url_results_dict[url]
+                success = sys.stdout.write(colored('[+] ', 'green'))
+                sys.stdout.write(colored('(%d) ' % (result_number), 'cyan'))
+                sys.stdout.write(colored('%s' % (result_info), 'white'))
+                new_url_list.append(new_url)
+                result_number_list.append(result_number)
+                dork_name_list.append(dork_name)
+                print('')
+
+        else:
+            failure = sys.stdout.write(colored('[-] ', 'red'))
+            sys.stdout.write(colored('%s' % new_url, 'white'))
+            count = count + 1
+            print('')
+
+# CSV OUTPUT TO FILE
+if args.output:
+    # FILE NAME USER INPUT
+    file_name = args.output
+
+    # DEFINE ROWS FOR KEYWORDS AND WITHOUT
+    query_with_dorks_rows = zip(dork_name_list, new_url_list, result_number_list)
+    organization_with_dorks_row = zip(dork_name_list, new_url_list, result_number_list)
+    user_with_keyword_only_rows = zip(user_list, keyword_name_list, new_url_list, result_number_list)
+    user_with_keyword_and_dorks_rows = zip(user_list, dork_name_list, keyword_name_list, new_url_list,
+                                           result_number_list)
+    user_with_dorks_only_rows = zip(user_list, dork_name_list, new_url_list, result_number_list)
+
+    # DEFINE FIELDS FOR KEYWORDS AND WITHOUT
+    query_with_dorks_fields = ['DORK', 'URL', 'NUMBER OF RESULTS']
+    organization_with_dorks_fields = ['DORK', 'URL', 'NUMBER OF RESULTS']
+    user_with_keyword_only_fields = ['USER', 'KEYWORD', 'URL', 'NUMBER OF RESULTS']
+    user_with_keyword_and_dorks_fields = ['USER', 'DORK', 'KEYWORD', 'URL', 'NUMBER OF RESULTS']
+    user_with_dorks_only_fields = ['USER', 'DORK', 'URL', 'NUMBER OF RESULTS']
+
+    # OUTPUT FOR ROWS WITH KEYWORDS AND DORKS
+    with open(file_name + '_gh_dorks' + '.csv', "w") as csvfile:
+        wr = csv.writer(csvfile)
+        if args.query or args.queryfile:
+            wr.writerow(query_with_dorks_fields)
+            for row in query_with_dorks_rows:
+                wr.writerow(row)
+        if args.organization:
+            wr.writerow(organization_with_dorks_fields)
+            for row in organization_with_dorks_row:
+                wr.writerow(row)
+        elif args.users or args.userfile:
+            if args.keyword and args.dorks:
+                wr.writerow(user_with_keyword_and_dorks_fields)
+                for row in user_with_keyword_and_dorks_rows:
+                    wr.writerow(row)
+            elif args.keyword and not args.dorks:
+                wr.writerow(user_with_keyword_only_fields)
+                for row in user_with_keyword_only_rows:
+                    wr.writerow(row)
+            elif args.dorks and not args.keyword:
+                wr.writerow(user_with_dorks_only_fields)
+                for row in user_with_dorks_only_rows:
+                    wr.writerow(row)
+
+    csvfile.close()
+    print("")
+    sys.stdout.write(
+        colored("Results have been outputted into the current working directory as " + file_name + "_gitdorker",
+                'green'))
+    print("")
+    print("")
