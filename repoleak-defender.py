@@ -1,3 +1,6 @@
+#!/usr/bin/python3
+
+
 print("""
 
 ██████  ███████ ██████   ██████  ██      ███████  █████  ██   ██     ██████  ███████ ███████ ███████ ███    ██ ██████  ███████ ██████  
@@ -5,10 +8,10 @@ print("""
 ██████  █████   ██████  ██    ██ ██      █████   ███████ █████       ██   ██ █████   █████   █████   ██ ██  ██ ██   ██ █████   ██████  
 ██   ██ ██      ██      ██    ██ ██      ██      ██   ██ ██  ██      ██   ██ ██      ██      ██      ██  ██ ██ ██   ██ ██      ██   ██ 
 ██   ██ ███████ ██       ██████  ███████ ███████ ██   ██ ██   ██     ██████  ███████ ██      ███████ ██   ████ ██████  ███████ ██   ██ 
-                                                                                                                                                                                                                                                           
+
 """)
 
-# Part-1 author@Vinayak Teli 
+# author@Vinayak
 # Libraries
 import sys
 import json
@@ -21,10 +24,10 @@ from itertools import zip_longest
 from termcolor import colored
 from multiprocessing.dummy import Pool
 
-# Linking API
+# API 
 GITHUB_API_URL = 'https://api.github.com'
 
-# PARSER
+# PARSER CONFIG
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--dorks", help="dorks file (required)")
 parser.add_argument("-k", "--keyword", help="search on a keyword instead of a list of dorks")
@@ -62,6 +65,9 @@ if args.tokenfile:
     with open(args.tokenfile) as f:
         tokens_list = [i.strip() for i in f.read().splitlines() if i.strip()]
 
+# if not len(tokens_list):
+#     parser.error('auth token is missing')
+
 # USER ARGUMENT LOGIC
 if args.users:
     users_list = args.users.split(',')
@@ -80,6 +86,7 @@ if args.queryfile:
 if args.patternfilter:
     patternfilter = " -fake -example -test -XXXX -1234 -ABCD"
 
+
 if args.organization:
     organizations_list = args.organization.split(',')
 
@@ -87,6 +94,7 @@ if args.threads:
     threads = int(args.threads)
 else:
     threads = 1
+
 
 if args.dorks:
     fp = open(args.dorks, 'r')
@@ -102,81 +110,92 @@ if not args.dorks and not args.keyword:
 # NUMBER OF REQUESTS PER MINUTE (TOKENS MUST BE UNIQUE)
 requests_per_minute = (len(tokens_list) * 30) - 1
 
-
-#Part-2  author@Suprit
-#Robin round for tokens
+# author@Suprit
+# TOKEN ROUND ROBIN
 n = -1
-
 def token_round_robin():
     global n
-    n = n+1
+    n = n + 1
     if n == len(tokens_list):
         n = 0
-        current_token = tokens_list[n]
-        return current_token 
+    current_token = tokens_list[n]
+    return current_token
 
-#API search Function
+
+# API SEARCH FUNCTION
 def api_search(url):
-    if args.dorks: 
+    if args.dorks:  # UNDO COMPLETE! :)
         if args.keyword:
             sys.stdout.write(colored(
-                '\r[+] Dorking with Keyword In Progress %d/%d\r' % (stats_dict['n_current'], stats_dict['n_total_urls']),
+                '\r[+] Dorking with Keyword In Progress  %d/%d\r' % (stats_dict['n_current'], stats_dict['n_total_urls']),
                 "green"))
             sys.stdout.flush()
         else:
             sys.stdout.write(
-                colored('\r[+] Dorking In Progress %d/%d\r' % (stats_dict['n_current'], stats_dict['n_total_urls']), "green"))
+                colored('\r[+] Dorking In Progress  %d/%d\r' % (stats_dict['n_current'], stats_dict['n_total_urls']), "green"))
             sys.stdout.flush()
 
     elif args.keyword and not args.dorks:
         sys.stdout.write(
-            colored('\r[+]  Keyword Search In Progress %d/%d\r' % (stats_dict['n_current'], stats_dict['n_total_urls']),
+            colored('\r[+] Keyword Search In Progress %d/%d\r' % (stats_dict['n_current'], stats_dict['n_total_urls']),
                     "green"))
         sys.stdout.flush()
-stats_dict['n_current'] = stats_dict['n_current'] + 1
-headers = {"Authorization": "token" + token_round_robin()}
 
-try:
-    r = requests.get(url, headers=headers)
-    json = r.json()
-    if args.limitbypass:
-        if stats_dict['n_current'] % requests_per_minute == 0:
-            for remaining in range(63, 0, -1):
-                sys.stdout.write("\r")
-                sys.stdout.write(colored(
-                    "\r[*] Sleep function is used to avoid rate limits. | {:2d} seconds remaining.\r".format(
+    stats_dict['n_current'] = stats_dict['n_current'] + 1
+    headers = {"Authorization": "token " + token_round_robin()}
+
+    try:
+        r = requests.get(url, headers=headers)
+        json = r.json()
+        if args.limitbypass:
+            if stats_dict['n_current'] % requests_per_minute == 0:
+                for remaining in range(63, 0, -1):
+                    sys.stdout.write("\r")
+                    sys.stdout.write(colored(
+                        "\r[-] Trying to sleep to avoid Ratelimiting | {:2d} seconds remaining.\r".format(
                             remaining), "blue"))
-                sys.stdout.flush()
-                time.sleep(1)
+                    sys.stdout.flush()
+                    time.sleep(1)
+        else:
+            if stats_dict['n_current'] % 29 == 0:
+                for remaining in range(63, 0, -1):
+                    sys.stdout.write("\r")
+                    sys.stdout.write(colored(
+                        "\r[-] Trying to sleep to avoid Ratelimiting | {:2d} seconds remaining.\r".format(
+                            remaining), "blue"))
+                    sys.stdout.flush()
+                    time.sleep(1)
 
-if 'documentation_url' in json:
-    print(colored("[-] error occurred: %s" % json['documentation_url'], 'red'))        
-else:
-    url_results_dict[url] = json['total_count']
+        if 'documentation_url' in json:
+            print(colored("[-] error occurred: %s" % json['documentation_url'], 'red'))
+        else:
+            url_results_dict[url] = json['total_count']
 
-except Exception as e:
-    print(colored("[-] Error: %s" % e, 'red'))                
-    return 0
+    except Exception as e:
+        print(colored("[-] error occurred: %s" % e, 'red'))
+        return 0
 
-#URL Encoding Function
+
+# URL ENCODING FUNCTION
 def __urlencode(str):
     str = str.replace(':', '%3A');
     str = str.replace('"', '%22');
     str = str.replace(' ', '+');
     return str
 
-#Declare Dictionaries
+
+# DECLARE DICTIONARIES
 url_dict = {}
 results_dict = {}
 url_results_dict = {}
 stats_dict = {
-    '1_tokens': len(tokens_list),
+    'l_tokens': len(tokens_list),
     'n_current': 0,
     'n_total_urls': 0
 }
 
-#Creating Queries
-for query in quries_list:
+# CREATE QUERIES
+for query in queries_list:
     results_dict[query] = []
     for dork in dorks_list:
         if not args.patternfilter:
@@ -184,19 +203,21 @@ for query in quries_list:
                 dork = "{}".format(query) + " " + dork
             else:
                 dork = "{}".format(query) + " " + dork
-                url = 'https://qpi.github.com/search/code?q=' + __urlencode(dork)
-                results_dict[query].append(url)
-                url_dict[url] = 0
+            url = 'https://api.github.com/search/code?q=' + __urlencode(dork)
+            results_dict[query].append(url)
+            url_dict[url] = 0
+        else:
+            if ":" in query:
+                dork = "{}".format(query) + " " + dork + patternfilter
             else:
-if ":" in query:
-    dork = "{}".format(query) + " " + dork + patternfilter
-else:
-    dork = "{}".format(query) + " " + dork + patternfilter
-    url = 'https://api.github.com/search/code?q=' + __urlencode(dork)
-    results_dict[query].append(url)
-    url_dict[url] = 0
+                dork = "{}".format(query) + " " + dork + patternfilter
+            url = 'https://api.github.com/search/code?q=' + __urlencode(dork)
+            results_dict[query].append(url)
+            url_dict[url] = 0
 
-#Creating Organizations
+
+
+# CREATE ORGS
 for organization in organizations_list:
     results_dict[organization] = []
     for dork in dorks_list:
@@ -211,46 +232,59 @@ for organization in organizations_list:
             results_dict[organization].append(url)
             url_dict[url] = 0
 
-#Users
+#Create Users
 for user in users_list:
     results_dict[user] = []
     if args.dorks:
         if args.keyword:
             for dork in dorks_list:
-                if not args.patternfilter:
-                    keyword_dork = 'user:' + user + ' ' + keyword + ' ' + dork
-                    url = 'https://api.github.com/search/code?q=' + __urlencode(keyword_dork)
-                    results_dict[user].append(url)
-                    url_dict[url] = 0
-                else:
-                    keyword_dork = 'user:' + user + ' ' + keyword + ' ' + dork + patternfilter
-                    url = 'https://api.github.com/search/code?q=' + __urlencode(keyword_dork)
-                    results_dict[user].append(url)
-                    url_dict[url] = 0
+                for keyword in keywords_list:
+                    if not args.patternfilter:
+                        keyword_dork = 'user:' + user + ' ' + keyword + ' ' + dork
+                        url = 'https://api.github.com/search/code?q=' + __urlencode(keyword_dork)
+                        results_dict[user].append(url)
+                        url_dict[url] = 0
+                    else:
+                        keyword_dork = 'user:' + user + ' ' + keyword + ' ' + dork + patternfilter
+                        url = 'https://api.github.com/search/code?q=' + __urlencode(keyword_dork)
+                        results_dict[user].append(url)
+                        url_dict[url] = 0
 
-if not args.keyword:
-    for dork in dorks_list:
-        if not args.patternfilter:
-            dork = 'user' + user + ' ' + dork
-            url = 'https://api.github.com/search/code?q=' + __urlencode(keyword)
-            results_dict[user].append(url)
-            url_dict[url] = 0
-        else:
-            keyword = 'user' + user + ' ' + keyword + patternfilter
-            url = 'https://api.github.com/search/code?q=' + __urlencode(keyword)
-            results_dict[user].append(url)
-            url_dict[url] = 0
-            
-# Part-3 author@Omkar
+    if not args.keyword:
+        for dork in dorks_list:
+            if not args.patternfilter:
+                dork = 'user:' + user + ' ' + dork
+                url = 'https://api.github.com/search/code?q=' + __urlencode(dork)
+                results_dict[user].append(url)
+                url_dict[url] = 0
+            else:
+                dork = 'user:' + user + ' ' + dork + patternfilter
+                url = 'https://api.github.com/search/code?q=' + __urlencode(dork)
+                results_dict[user].append(url)
+                url_dict[url] = 0
+
+    if args.keyword and not args.dorks:
+        for keyword in keywords_list:
+            if not args.patternfilter:
+                keyword = 'user:' + user + ' ' + keyword
+                url = 'https://api.github.com/search/code?q=' + __urlencode(keyword)
+                results_dict[user].append(url)
+                url_dict[url] = 0
+            else:
+                keyword = 'user:' + user + ' ' + keyword + patternfilter
+                url = 'https://api.github.com/search/code?q=' + __urlencode(keyword)
+                results_dict[user].append(url)
+                url_dict[url] = 0
+
+# author@Omkar
 # Updates
 stats_dict['n_total_urls'] = len(url_dict)
 print("""
-██    ██ ██████  ██████   █████  ████████ ███████ ███████ 
+█    ██ ██████  ██████   █████  ████████ ███████ ███████ 
 ██    ██ ██   ██ ██   ██ ██   ██    ██    ██      ██      
 ██    ██ ██████  ██   ██ ███████    ██    █████   ███████ 
 ██    ██ ██      ██   ██ ██   ██    ██    ██           ██ 
  ██████  ██      ██████  ██   ██    ██    ███████ ███████ 
-                                                          
 """)
 sys.stdout.write(colored('[#] %d organizations found.\n' % len(organizations_list), 'cyan'))
 sys.stdout.write(colored('[#] %d users found.\n' % len(users_list), 'cyan'))
@@ -265,27 +299,27 @@ if args.limitbypass:
 else:
     sys.stdout.write(colored('[#] 29 requests per minute allowed\n', 'cyan'))
 print("")
-# Sleep
+# SLEEP
 time.sleep(1)
 
-# API search
+# POOL FUNCTION TO RUN API SEARCH
 pool = Pool(threads)
 pool.map(api_search, url_dict)
 pool.close()
 pool.join()
 
+# SET COUNT
 count = 0
 keyword_count = 0
 
-# Display result
+# SHOW RESULTS
 print("")
 print("""
 ██████  ███████ ███████ ██    ██ ██   ████████ 
 ██   ██ ██      ██      ██    ██ ██      ██    
 ██████  █████   ███████ ██    ██ ██      ██    
 ██   ██ ██           ██ ██    ██ ██      ██    
-██   ██ ███████ ███████  ██████  ███████ ██    
-                                              
+██   ██ ███████ ███████  ██████  ███████ ██   
 """)
 
 new_url_list = []
@@ -294,7 +328,7 @@ dork_name_list = []
 keyword_name_list = []
 user_list = []
 
-# Conditional output
+# DEFINE CONDITIONAL OUTPUT MARKERS
 sys.stdout.write(colored('[+] SUCCESS | RESULTS RETURNED ', 'green'))
 print("")
 normal = sys.stdout.write(colored('[#] NEUTRAL | NO RESULTS RETURNED', 'yellow'))
@@ -302,7 +336,7 @@ print("")
 failure = sys.stdout.write(colored('[-] FAILURE | RATE LIMITS OR API FAILURE ', 'red'))
 print("")
 
-# Result logic for queries
+# RESULTS LOGIC FOR QUERIES
 for query in queries_list:
     print("")
     sys.stdout.write(colored('QUERY PROVIDED: %s' % (query), 'cyan'))
@@ -354,7 +388,7 @@ for query in queries_list:
             print('')
 
 
-# ADD Keyword to Output to DORKS & ARGS
+# ADD KEYWORD TO OUTPUT TO BOTH DORKS AND ARGS
 for user in users_list:
     print("")
     sys.stdout.write(colored('USER PROVIDED: %s' % (user), 'cyan'))
@@ -409,6 +443,7 @@ for user in users_list:
                     keyword_count = keyword_count + 1
                 else:
                     keyword_count = 0
+                # Potentially code in removal from list to prevent query offset
                 print('')
 
 
@@ -480,7 +515,8 @@ for user in users_list:
                     count = 0
                 print('')
 
-# Part-4 author@Srujukt
+
+# author@Srujukt
 # RESULTS LOGIC FOR ORGANIZATIONS
 for organization in organizations_list:
     print("ORGANIZATION PROVIDED: " + '%s' % organization)
